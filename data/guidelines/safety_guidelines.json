@@ -1,0 +1,48 @@
+
+[
+  {
+    "hazard": "wet floor",
+    "precautions": [
+      "Keep the person away from the wet area.",
+      "Clean the spill and dry the floor.",
+      "Place a warning sign until the floor is dry."
+    ],
+    "source": "Project prototype guideline: wet-floor precautions"
+  },
+  {
+    "hazard": "open drain",
+    "precautions": [
+      "Keep children and other vulnerable people away from the drain.",
+      "Install a secure, load-appropriate cover or barrier.",
+      "Report the uncovered drain to the responsible authority."
+    ],
+    "source": "Project prototype guideline: open-drain precautions"
+  },
+  {
+    "hazard": "exposed wire",
+    "precautions": [
+      "Keep everyone away from the exposed wire.",
+      "Do not touch the wire or nearby wet surfaces.",
+      "Arrange for a qualified electrician to isolate and repair it."
+    ],
+    "source": "Project prototype guideline: electrical safety"
+  },
+  {
+    "hazard": "stairs",
+    "precautions": [
+      "Keep the stairs clear of objects.",
+      "Use a secure handrail when available.",
+      "Provide appropriate supervision for children and people with mobility difficulties."
+    ],
+    "source": "Project prototype guideline: stair safety"
+  },
+  {
+    "hazard": "broken glass",
+    "precautions": [
+      "Keep people away from the broken glass.",
+      "Use appropriate protective equipment to collect the fragments safely.",
+      "Dispose of the fragments in a suitable, puncture-resistant container."
+    ],
+    "source": "Project prototype guideline: broken-glass safety"
+  }
+]
