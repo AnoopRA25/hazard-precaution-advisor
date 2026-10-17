@@ -32,7 +32,7 @@
     "precautions": [
       "Keep the stairs clear of objects.",
       "Use a secure handrail when available.",
-      "Provide appropriate supervision for children and people with mobility difficulties."
+      "Provide appropriate supervision for people with mobility difficulties."
     ],
     "source": "Project prototype guideline: stair safety"
   },
@@ -44,5 +44,41 @@
       "Dispose of the fragments in a suitable, puncture-resistant container."
     ],
     "source": "Project prototype guideline: broken-glass safety"
+  },
+  {
+    "hazard": "electrical cable",
+    "precautions": [
+      "Keep the walking path clear of trailing cables.",
+      "Arrange cables along walls or secure them with suitable cable covers.",
+      "Avoid damaged cables and overloaded extension boards."
+    ],
+    "source": "Project prototype guideline: cable and electrical safety"
+  },
+  {
+    "hazard": "loose objects",
+    "precautions": [
+      "Remove loose items, bags, and footwear from walking paths.",
+      "Keep frequently used walkways clear.",
+      "Provide extra assistance to people with balance or mobility difficulties."
+    ],
+    "source": "Project prototype guideline: indoor trip prevention"
+  },
+  {
+    "hazard": "rug",
+    "precautions": [
+      "Check whether the rug slips or curls at the edges.",
+      "Use a suitable non-slip backing or secure the rug.",
+      "Remove the rug if it cannot be secured safely."
+    ],
+    "source": "Project prototype guideline: rug and floor safety"
+  },
+  {
+    "hazard": "items stacked overhead",
+    "precautions": [
+      "Move heavy items from high storage positions to a stable, lower location.",
+      "Keep frequently used items within easy reach.",
+      "Avoid standing beneath unstable or overloaded storage."
+    ],
+    "source": "Project prototype guideline: falling-object prevention"
   }
 ]
