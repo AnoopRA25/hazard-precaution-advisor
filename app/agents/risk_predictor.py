@@ -29,7 +29,20 @@ def risk_predictor(state: HazardState) -> dict:
         "electric shock",
     ]
 
-    # Hazards that may cause trips, slips, or falls
+    # Potential falling-object hazards
+    falling_object_keywords = [
+        "falling object",
+        "unsecured heavy items",
+        "stacked loosely",
+        "top of the wardrobe",
+        "overhead storage",
+        "unstable storage",
+        "stored on top",
+        "heavy items stored",
+        "objects stored at height",
+    ]
+
+    # Potential trip and slip hazards
     trip_keywords = [
         "wet floor",
         "stairs",
@@ -40,47 +53,95 @@ def risk_predictor(state: HazardState) -> dict:
         "trip or slip",
         "extension cord",
         "power strip",
+        "extension board",
         "electrical cable",
         "trailing cable",
+        "power cords",
         "cables across",
         "walkway",
+        "walking path",
         "loose slippers",
+        "loose footwear",
+        "footwear scattered",
         "sandals",
         "scattered",
-        "walking path",
+        "unsecured rug",
+        "loose throw rug",
+        "slip hazard",
+        "slick tile",
+        "smooth tile",
     ]
 
-    vulnerable_person = person_type in ["baby", "child", "elderly"]
+    vulnerable_person = person_type in [
+        "baby",
+        "child",
+        "elderly",
+    ]
 
+    # 1. Potentially severe hazards take priority.
     if any(word in hazard_text for word in severe_keywords):
         risk_level = "high"
         predicted_risk = (
             "The detected hazard may cause serious injury, "
             "including electrical injury or other severe harm."
         )
-        reason = "A potentially severe hazard was identified."
+        reason = (
+            "A potentially severe hazard was identified. "
+            "Keep people away and arrange appropriate professional help."
+        )
 
-    elif any(word in hazard_text for word in trip_keywords):
-        risk_level = "high" if vulnerable_person else "medium"
+    # 2. Objects stored overhead may fall and cause impact injuries.
+    elif any(
+        word in hazard_text for word in falling_object_keywords
+    ):
+        risk_level = "high"
         predicted_risk = (
-            "Trailing cables and/or loose items in the walking path "
-            "may cause a trip, loss of balance, and a fall."
+            "Unsecured items stored at height may fall and cause "
+            "head injuries or other impact injuries."
         )
         reason = (
-            "The walking path contains potential trip hazards."
+            "Unstable or unsecured objects were detected above "
+            "the walking area. Heavy items should be stored securely "
+            "at a lower height."
+        )
+
+        if person_type in ["baby", "child"]:
+            reason += (
+                " Keep children away from the area and have an adult "
+                "secure the objects."
+            )
+        elif person_type == "elderly":
+            reason += (
+                " Avoid reaching overhead or attempting to move "
+                "heavy objects without appropriate assistance."
+            )
+
+    # 3. Trip and slip hazards.
+    elif any(word in hazard_text for word in trip_keywords):
+        risk_level = "high" if vulnerable_person else "medium"
+
+        predicted_risk = (
+            "Trailing cables, loose objects, or slippery surfaces "
+            "may cause a trip, loss of balance, or a fall."
+        )
+
+        reason = (
+            "The walking area contains potential trip or slip hazards."
         )
 
         if person_type == "elderly":
             reason += (
                 " A fall may have more serious consequences for an "
-                "older adult, particularly if balance or mobility is limited."
+                "older adult, particularly if balance or mobility "
+                "is limited."
             )
         elif person_type in ["baby", "child"]:
             reason += (
-                " Young children need appropriate supervision "
+                " Young children require appropriate supervision "
                 "around these hazards."
             )
 
+    # 4. Unknown hazard descriptions need further assessment.
     else:
         risk_level = "medium"
         predicted_risk = (
@@ -88,8 +149,8 @@ def risk_predictor(state: HazardState) -> dict:
             "further assessment."
         )
         reason = (
-            "The hazard could not be classified confidently "
-            "using the current prototype rules."
+            "The hazard could not be classified confidently using "
+            "the current prototype rules. Do not assume the area is safe."
         )
 
     return {
