@@ -10,13 +10,12 @@ from app.agents.caregiver_alert import caregiver_alert
 
 
 def analyze_scene(state: HazardState) -> dict:
-    """Analyze the image, retrying only low-confidence results."""
+    """Analyze the image, retrying low-confidence results once."""
     result = scene_analyst(state)
     retry_count = state.get("retry_count", 0)
 
     result["retry_count"] = retry_count
 
-    # Do not retry API, file, or configuration errors.
     if result.get("error"):
         return result
 
@@ -27,7 +26,7 @@ def analyze_scene(state: HazardState) -> dict:
 
 
 def route_after_analysis(state: HazardState) -> str:
-    """Choose the next workflow step."""
+    """Choose the next step after scene analysis."""
     if state.get("error"):
         return "retake"
 
@@ -59,7 +58,7 @@ def safe_result(state: HazardState) -> dict:
 
 
 def retake_result(state: HazardState) -> dict:
-    """Avoid making a safety determination when analysis fails."""
+    """Avoid a definitive safety determination when analysis fails."""
     return {
         "setting": state.get("setting", "unknown"),
         "hazards": [],
@@ -68,38 +67,33 @@ def retake_result(state: HazardState) -> dict:
             "Do not assume the area is safe."
         ),
         "risk_level": "medium",
+        "reason": (
+            "The image could not be assessed with sufficient confidence."
+        ),
         "precautions": [
-            "Keep away from any suspected hazards until checked.",
-            "Submit a clearer image or check the area in person safely.",
+            "Keep away from suspected hazards until checked.",
+            "Submit a clearer image or have the area checked safely.",
         ],
     }
 
 
+def route_after_report(state: HazardState) -> str:
+    """Send alerts only for high-risk assessments."""
+    if state.get("risk_level", "medium").lower() == "high":
+        return "alert"
+    return "end"
+
+
 builder = StateGraph(HazardState)
 
+# Register every node before connecting graph edges.
 builder.add_node("scene_analyst", analyze_scene)
 builder.add_node("risk_predictor", risk_predictor)
 builder.add_node("safety_advisor", safety_advisor)
 builder.add_node("safe_result", safe_result)
 builder.add_node("retake_result", retake_result)
+builder.add_node("reporter", reporter)
 builder.add_node("caregiver_alert", caregiver_alert)
-
-def route_after_report(state: HazardState) -> str:
-    if state.get("risk_level", "medium").lower() == "high":
-        return "caregiver_alert"
-    return "end"
-
-
-builder.add_conditional_edges(
-    "reporter",
-    route_after_report,
-    {
-        "caregiver_alert": "caregiver_alert",
-        "end": END,
-    },
-)
-
-builder.add_edge("caregiver_alert", END)
 
 builder.add_edge(START, "scene_analyst")
 
@@ -118,6 +112,16 @@ builder.add_edge("risk_predictor", "safety_advisor")
 builder.add_edge("safety_advisor", "reporter")
 builder.add_edge("safe_result", "reporter")
 builder.add_edge("retake_result", "reporter")
-builder.add_edge("reporter", END)
+
+builder.add_conditional_edges(
+    "reporter",
+    route_after_report,
+    {
+        "alert": "caregiver_alert",
+        "end": END,
+    },
+)
+
+builder.add_edge("caregiver_alert", END)
 
 graph = builder.compile()

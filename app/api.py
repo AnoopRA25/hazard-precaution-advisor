@@ -11,10 +11,10 @@ from app.graph import graph
 app = FastAPI(
     title="Hazard Precaution Advisor",
     description="Image-based hazard detection and safety advice",
-    version="0.1.0",
+    version="0.2.0",
 )
 
-MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_IMAGE_SIZE = 10 * 1024 * 1024
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
@@ -125,6 +125,17 @@ async def analyze_image(
             "guideline_sources": result.get("guideline_sources", []),
             "message": result.get("message", ""),
             "error": result.get("error", ""),
+            "translation_error": result.get("translation_error", ""),
+            "caregiver_alert_required": result.get(
+                "caregiver_alert_required",
+                result.get("risk_level", "medium").lower() == "high",
+            ),
+            "caregiver_alert_sent": result.get(
+                "caregiver_alert_sent", False
+            ),
+            "caregiver_alert_error": result.get(
+                "caregiver_alert_error", ""
+            ),
         }
 
     finally:
