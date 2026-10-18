@@ -17,56 +17,152 @@ def normalize(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
 
 
-def find_guidelines(hazard: str, guidelines: list[dict]) -> list[dict]:
+def get_hazard_category(hazard: str) -> str:
+    """Classify a detected hazard using flexible keyword matching."""
     text = normalize(hazard)
+    words = set(text.split())
 
-    aliases = {
-        "electrical cable": [
-            "electrical cable",
-            "exposed wire",
-        ],
-        "loose objects": ["loose objects"],
-        "rug": ["rug"],
-        "wet floor": ["wet floor"],
-        "broken glass": ["broken glass"],
-        "stairs": ["stairs"],
-        "open drain": ["open drain"],
-    }
+    # Exposed electrical wires: check before general cable hazards.
+    if (
+        "wire" in words
+        and any(
+            term in text
+            for term in [
+                "exposed",
+                "live wire",
+                "bare wire",
+                "uninsulated",
+            ]
+        )
+    ):
+        return "exposed wire"
 
-    matched = []
+    # Falling objects and unstable overhead storage.
+    if any(
+        term in text
+        for term in [
+            "falling object",
+            "falling objects",
+            "stored on top",
+            "stacked",
+            "overhead storage",
+            "objects stored at height",
+            "heavy items",
+            "suitcase",
+            "cardboard box",
+            "top of the wardrobe",
+            "wardrobe",
+            "unstable storage",
+            "unsecured items",
+        ]
+    ):
+        return "items stacked overhead"
 
-    # Prefer direct matches.
-    for entry in guidelines:
-        key = normalize(entry.get("hazard", ""))
-        if key and key in text:
-            matched.append(entry)
+    # Wet floors and liquid spills.
+    if any(
+        term in text
+        for term in [
+            "wet floor",
+            "water spill",
+            "liquid spill",
+            "spilled liquid",
+            "water on the floor",
+            "wet surface",
+        ]
+    ):
+        return "wet floor"
 
-    # Use aliases for descriptions phrased differently by Gemini.
-    if not matched:
-        if any(word in text for word in [
-            "cable", "cord", "power strip", "extension board"
-        ]):
-            keys = aliases["electrical cable"]
-        elif any(word in text for word in [
-            "slipper", "sandal", "footwear", "backpack",
-            "bag", "scattered", "loose item", "walking path"
-        ]):
-            keys = aliases["loose objects"]
-        elif any(word in text for word in [
-            "rug", "carpet", "slip hazard"
-        ]):
-            keys = aliases["rug"]
-        else:
-            keys = []
+    # Broken glass.
+    if any(
+        term in text
+        for term in [
+            "broken glass",
+            "shattered glass",
+        ]
+    ):
+        return "broken glass"
 
-        for entry in guidelines:
-            if normalize(entry.get("hazard", "")) in keys:
-                matched.append(entry)
+    # Open drains and manholes.
+    if any(
+        term in text
+        for term in [
+            "open drain",
+            "open manhole",
+        ]
+    ):
+        return "open drain"
 
-    return matched
+    # Stairs and step edges.
+    if any(
+        term in text
+        for term in [
+            "stairs",
+            "staircase",
+            "step edge",
+        ]
+    ):
+        return "stairs"
+
+    # Rugs and carpets.
+    if any(
+        term in text
+        for term in [
+            "rug",
+            "carpet",
+            "throw mat",
+        ]
+    ):
+        return "rug"
+
+    # Trailing electrical cables.
+    if any(
+        term in text
+        for term in [
+            "cable",
+            "cord",
+            "power strip",
+            "extension board",
+            "extension lead",
+        ]
+    ):
+        return "electrical cable"
+
+    # Loose objects on floors and walking paths.
+    if any(
+        term in text
+        for term in [
+            "slipper",
+            "sandal",
+            "footwear",
+            "backpack",
+            "bag",
+            "papers",
+            "books",
+            "scattered",
+            "loose items",
+            "clutter",
+            "walking path",
+            "walkway",
+        ]
+    ):
+        return "loose objects"
+
+    # Other explicitly described electrical hazards.
+    if any(
+        term in text
+        for term in [
+            "electrical hazard",
+            "electric shock",
+            "electrical fire",
+        ]
+    ):
+        return "electrical hazard"
+
+    return "unknown"
 
 
 def safety_advisor(state: HazardState) -> dict:
+    """Return precautions matching the detected hazard categories."""
     hazards = state.get("hazards", [])
     precautions = []
     sources = []
@@ -75,14 +171,24 @@ def safety_advisor(state: HazardState) -> dict:
         with GUIDELINES_PATH.open("r", encoding="utf-8") as file:
             guidelines = json.load(file)
 
-        # Reserve space for relevant advice for each detected hazard.
-        for hazard in hazards:
-            entries = find_guidelines(hazard, guidelines)
+        if not isinstance(guidelines, list):
+            raise ValueError("Safety guidelines must be a JSON list.")
 
-            for entry in entries:
-                items = entry.get("precautions", [])
-                if items:
-                    item = items[0]
+        for hazard in hazards:
+            category = get_hazard_category(hazard)
+
+            if category == "unknown":
+                continue
+
+            for entry in guidelines:
+                guideline_category = normalize(
+                    entry.get("hazard", "")
+                )
+
+                if guideline_category != normalize(category):
+                    continue
+
+                for item in entry.get("precautions", []):
                     if item not in precautions:
                         precautions.append(item)
 
@@ -90,23 +196,9 @@ def safety_advisor(state: HazardState) -> dict:
                 if source and source not in sources:
                     sources.append(source)
 
-        # Add further useful advice until the report has four items.
-        for hazard in hazards:
-            if len(precautions) >= 4:
-                break
-
-            for entry in find_guidelines(hazard, guidelines):
-                for item in entry.get("precautions", []):
-                    if item not in precautions:
-                        precautions.append(item)
-                    if len(precautions) >= 4:
-                        break
-                if len(precautions) >= 4:
-                    break
-
         if not precautions:
             precautions = [
-                "Keep people away from suspected hazards.",
+                "Keep people away from the suspected hazard.",
                 "Ask a qualified person to assess the area.",
             ]
 
@@ -116,7 +208,7 @@ def safety_advisor(state: HazardState) -> dict:
             "error": "",
         }
 
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
         return {
             "precautions": [
                 "Keep people away from suspected hazards.",
