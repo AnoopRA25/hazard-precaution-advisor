@@ -11,3 +11,4 @@ python-telegram-bot
 chromadb
 pytest
 httpx
+python-multipart
