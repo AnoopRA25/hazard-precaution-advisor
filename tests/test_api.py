@@ -54,3 +54,66 @@ def test_invalid_image_content_is_rejected():
         files={"image": ("test.jpg", b"not-a-real-image", "image/jpeg")},
     )
     assert response.status_code == 400
+
+def test_analyze_endpoint_returns_report():
+    fake_result = {
+        "setting": "bedroom",
+        "person_type": "elderly",
+        "language": "English",
+        "hazards": ["loose electrical cables", "scattered objects"],
+        "confidence": 0.95,
+        "risk_level": "high",
+        "predicted_risk": "Fall or trip injury",
+        "reason": "Loose cables and scattered objects create trip hazards.",
+        "precautions": [
+            "Move cables away from walking paths.",
+            "Remove scattered objects from the floor.",
+        ],
+        "guideline_sources": [],
+        "message": "High risk detected. Please remove the hazards.",
+        "error": "",
+        "translation_error": "",
+        "caregiver_alert_required": True,
+        "caregiver_alert_sent": True,
+        "caregiver_alert_error": "",
+    }
+
+    from PIL import Image
+    from io import BytesIO
+
+    image_buffer = BytesIO()
+    Image.new("RGB", (20, 20), color="white").save(
+        image_buffer, format="JPEG"
+    )
+    image_bytes = image_buffer.getvalue()
+
+    with patch("app.api.graph.invoke", return_value=fake_result):
+        response = client.post(
+            "/analyze",
+            data={
+                "person_type": "elderly",
+                "language": "English",
+            },
+            files={
+                "image": (
+                    "bedroom.jpg",
+                    image_bytes,
+                    "image/jpeg",
+                )
+            },
+        )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    assert result["risk_level"] == "high"
+    assert result["person_type"] == "elderly"
+    assert result["hazards"] == [
+        "loose electrical cables",
+        "scattered objects",
+    ]
+    assert result["caregiver_alert_required"] is True
+    assert result["caregiver_alert_sent"] is True
+    assert result["message"] == (
+        "High risk detected. Please remove the hazards."
+    )
