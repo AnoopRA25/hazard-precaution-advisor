@@ -23,8 +23,8 @@ class HazardState(TypedDict, total=False):
     guideline_sources: list[str]
 
     # Reporter output
-    message: str
-    caregiver_alert_sent: bool
+    caregiver_alert_error: str
+    caregiver_alert_required: bool
 
     # Workflow control
     retry_count: int

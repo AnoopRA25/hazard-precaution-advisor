@@ -6,6 +6,7 @@ from app.agents.scene_analyst import scene_analyst
 from app.agents.risk_predictor import risk_predictor
 from app.agents.safety_advisor import safety_advisor
 from app.agents.reporter import reporter
+from app.agents.caregiver_alert import caregiver_alert
 
 
 def analyze_scene(state: HazardState) -> dict:
@@ -81,7 +82,24 @@ builder.add_node("risk_predictor", risk_predictor)
 builder.add_node("safety_advisor", safety_advisor)
 builder.add_node("safe_result", safe_result)
 builder.add_node("retake_result", retake_result)
-builder.add_node("reporter", reporter)
+builder.add_node("caregiver_alert", caregiver_alert)
+
+def route_after_report(state: HazardState) -> str:
+    if state.get("risk_level", "medium").lower() == "high":
+        return "caregiver_alert"
+    return "end"
+
+
+builder.add_conditional_edges(
+    "reporter",
+    route_after_report,
+    {
+        "caregiver_alert": "caregiver_alert",
+        "end": END,
+    },
+)
+
+builder.add_edge("caregiver_alert", END)
 
 builder.add_edge(START, "scene_analyst")
 
