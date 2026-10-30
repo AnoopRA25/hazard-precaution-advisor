@@ -10,7 +10,7 @@ from app.agents.caregiver_alert import caregiver_alert
 
 
 def analyze_scene(state: HazardState) -> dict:
-    """Analyze the image, retrying low-confidence results once."""
+    """Analyze the image and track low-confidence retries."""
     result = scene_analyst(state)
     retry_count = state.get("retry_count", 0)
 
@@ -42,7 +42,7 @@ def route_after_analysis(state: HazardState) -> str:
 
 
 def safe_result(state: HazardState) -> dict:
-    """Prepare a cautious report when no hazard is visible."""
+    """Prepare a cautious report when no hazard is detected."""
     return {
         "predicted_risk": "No obvious hazards were identified.",
         "risk_level": "low",
@@ -58,7 +58,7 @@ def safe_result(state: HazardState) -> dict:
 
 
 def retake_result(state: HazardState) -> dict:
-    """Avoid a definitive safety determination when analysis fails."""
+    """Avoid declaring an area safe when analysis is unreliable."""
     return {
         "setting": state.get("setting", "unknown"),
         "hazards": [],
@@ -78,50 +78,63 @@ def retake_result(state: HazardState) -> dict:
 
 
 def route_after_report(state: HazardState) -> str:
-    """Send alerts only for high-risk assessments."""
+    """Send caregiver alerts only for high-risk assessments."""
     if state.get("risk_level", "medium").lower() == "high":
         return "alert"
+
     return "end"
 
 
-builder = StateGraph(HazardState)
+def build_graph():
+    """Build a fresh graph using the currently configured agent functions."""
+    builder = StateGraph(HazardState)
 
-# Register every node before connecting graph edges.
-builder.add_node("scene_analyst", analyze_scene)
-builder.add_node("risk_predictor", risk_predictor)
-builder.add_node("safety_advisor", safety_advisor)
-builder.add_node("safe_result", safe_result)
-builder.add_node("retake_result", retake_result)
-builder.add_node("reporter", reporter)
-builder.add_node("caregiver_alert", caregiver_alert)
+    # Register all nodes.
+    builder.add_node("scene_analyst", analyze_scene)
+    builder.add_node("risk_predictor", risk_predictor)
+    builder.add_node("safety_advisor", safety_advisor)
+    builder.add_node("safe_result", safe_result)
+    builder.add_node("retake_result", retake_result)
+    builder.add_node("reporter", reporter)
+    builder.add_node("caregiver_alert", caregiver_alert)
 
-builder.add_edge(START, "scene_analyst")
+    # Start with image analysis.
+    builder.add_edge(START, "scene_analyst")
 
-builder.add_conditional_edges(
-    "scene_analyst",
-    route_after_analysis,
-    {
-        "retry": "scene_analyst",
-        "retake": "retake_result",
-        "safe": "safe_result",
-        "risk": "risk_predictor",
-    },
-)
+    # Route according to the image-analysis result.
+    builder.add_conditional_edges(
+        "scene_analyst",
+        route_after_analysis,
+        {
+            "retry": "scene_analyst",
+            "retake": "retake_result",
+            "safe": "safe_result",
+            "risk": "risk_predictor",
+        },
+    )
 
-builder.add_edge("risk_predictor", "safety_advisor")
-builder.add_edge("safety_advisor", "reporter")
-builder.add_edge("safe_result", "reporter")
-builder.add_edge("retake_result", "reporter")
+    # Hazard assessment and precaution generation.
+    builder.add_edge("risk_predictor", "safety_advisor")
+    builder.add_edge("safety_advisor", "reporter")
 
-builder.add_conditional_edges(
-    "reporter",
-    route_after_report,
-    {
-        "alert": "caregiver_alert",
-        "end": END,
-    },
-)
+    # Safe and unreliable-analysis results also get reported.
+    builder.add_edge("safe_result", "reporter")
+    builder.add_edge("retake_result", "reporter")
 
-builder.add_edge("caregiver_alert", END)
+    # Send alerts only when the reported risk is high.
+    builder.add_conditional_edges(
+        "reporter",
+        route_after_report,
+        {
+            "alert": "caregiver_alert",
+            "end": END,
+        },
+    )
 
-graph = builder.compile()
+    builder.add_edge("caregiver_alert", END)
+
+    return builder.compile()
+
+
+# The application uses this compiled graph.
+graph = build_graph()
